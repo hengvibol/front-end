@@ -31,7 +31,7 @@ export default function Home() {
   const [newItem, setNewItem] = useState({ name: '', description: '' })
   const [editingItemId, setEditingItemId] = useState<number | null>(null)
   const [editItem, setEditItem] = useState({ name: '', description: '' })
-  const rawBackendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+  const rawBackendUrl = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:8080' : '')
   const backendUrl = rawBackendUrl.replace(/\/$/, '').replace(/\/api$/, '')
   const queryClient = useQueryClient()
 
@@ -39,6 +39,9 @@ export default function Home() {
   const { data, isLoading, error } = useQuery<{ items: Item[]; timestamp: string }>({
     queryKey: ['items'],
     queryFn: async () => {
+      if (!backendUrl) {
+        throw new Error('NEXT_PUBLIC_API_URL is not configured')
+      }
       const response = await axios.get<ApiResponse<Item[]>>(`${backendUrl}/api/items`)
       return {
         items: response.data.data ?? [],
@@ -90,6 +93,9 @@ export default function Home() {
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    if (!backendUrl) {
+      return
+    }
     createMutation.mutate({
       name: newItem.name.trim(),
       description: newItem.description.trim(),
@@ -107,6 +113,9 @@ export default function Home() {
   }
 
   const saveEdit = (id: number) => {
+    if (!backendUrl) {
+      return
+    }
     updateMutation.mutate({
       id,
       payload: {
@@ -289,14 +298,14 @@ export default function Home() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => startEdit(item)}
-                        disabled={deleteMutation.isPending}
+                        disabled={deleteMutation.isPending || !backendUrl}
                         className="text-blue-600 hover:text-blue-800 transition duration-200"
                       >
                         ✏️ Edit
                       </button>
                       <button
                         onClick={() => deleteMutation.mutate(item.id)}
-                        disabled={deleteMutation.isPending}
+                        disabled={deleteMutation.isPending || !backendUrl}
                         className="text-red-600 hover:text-red-800 transition duration-200"
                       >
                         🗑️ Delete
